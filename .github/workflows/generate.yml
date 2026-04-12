@@ -1,0 +1,36 @@
+name: Generate Go code
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - run: sudo apt-get install -y protobuf-compiler
+      - run: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+      - run: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+      - run: |
+          mkdir -p out
+          cd out
+          go mod init github.com/doni9977/ass2go-gen
+          cd ..
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          protoc --go_out=out --go_opt=paths=source_relative --go-grpc_out=out --go-grpc_opt=paths=source_relative payment/v1/payment.proto order/v1/order.proto
+          cd out
+          go get google.golang.org/grpc
+          go get google.golang.org/protobuf
+          go mod tidy
+      - uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.PAT }}
+        with:
+          source-directory: 'out'
+          destination-github-username: 'doni9977'
+          destination-repository-name: 'ass2go-gen'
+          user-email: 'doni9977@users.noreply.github.com'
+          target-branch: main
